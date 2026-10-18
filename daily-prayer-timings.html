@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Prayer Timings</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Georgia,"Times New Roman",serif;background:#e8d7b7;display:flex;justify-content:center}
+.poster{width:100%;max-width:650px;min-height:100vh;background:linear-gradient(rgba(240,222,188,.15),rgba(240,222,188,.15)),url("prayer-bg.jpg");background-size:cover;background-position:center;padding:35px 20px 50px;text-align:center}
+.top{margin-top:30px}.arabic{font-family:"Noto Naskh Arabic",serif;direction:rtl}.top h1{font-size:38px;margin:5px}.top h2{font-size:32px;margin:8px}.subtitle{font-size:17px;margin-bottom:25px}
+.card{max-width:500px;margin:250px auto 0;background:rgba(246,226,190,.94);border:4px solid #c99578;border-radius:35px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,.20),inset 0 0 20px rgba(255,255,255,.35)}
+.card h1{margin:0;font-size:34px}.card h2{margin:5px 0 10px;letter-spacing:2px}.location,.date{font-size:14px;margin-bottom:15px}
+.prayer{display:grid;grid-template-columns:60px 1fr 130px;align-items:center;padding:15px 5px;border-bottom:1px solid rgba(80,50,30,.25)}.prayer:last-of-type{border-bottom:none}
+.icon{font-size:34px}.name{text-align:left}.name-ar{font-size:24px;font-weight:bold}.name-en{font-size:15px;letter-spacing:1px}.time{font-size:25px;font-weight:bold;text-align:right}
+.status{margin-top:20px;font-size:13px}.refresh{margin-top:15px;border:0;background:#496653;color:#fff;padding:11px 22px;border-radius:25px;font-size:14px;cursor:pointer}
+@media(max-width:500px){.card{margin-top:220px;padding:18px 14px}.prayer{grid-template-columns:45px 1fr 105px}.time{font-size:20px}.name-ar{font-size:21px}}
+</style>
+</head>
+<body>
+<div class="poster">
+<div class="top">
+<h1 class="arabic">سُبْحَانَ اللهِ</h1><h1 class="arabic">وَالْحَمْدُ لِلَّهِ</h1>
+<h1 class="arabic">وَلَا إِلٰهَ إِلَّا اللهُ</h1><h1 class="arabic">وَاللهُ أَكْبَرُ</h1>
+<h2 class="arabic">أَقِمِ الصَّلَاةَ</h2><div class="subtitle">Establish Prayer</div>
+</div>
+<div class="card">
+<h1 class="arabic">مواقيت الصلاة</h1><h2>PRAYER TIMINGS</h2>
+<div class="location" id="location">📍 Detecting your location...</div>
+<div class="date" id="date">Loading today's date...</div>
+<div class="prayer"><div class="icon">🌅</div><div class="name"><div class="name-ar arabic">الفجر</div><div class="name-en">FAJR</div></div><div class="time" id="Fajr">--:--</div></div>
+<div class="prayer"><div class="icon">☀️</div><div class="name"><div class="name-ar arabic">الظهر</div><div class="name-en">ZUHR</div></div><div class="time" id="Dhuhr">--:--</div></div>
+<div class="prayer"><div class="icon">🌤️</div><div class="name"><div class="name-ar arabic">العصر</div><div class="name-en">ASR</div></div><div class="time" id="Asr">--:--</div></div>
+<div class="prayer"><div class="icon">🌇</div><div class="name"><div class="name-ar arabic">المغرب</div><div class="name-en">MAGHRIB</div></div><div class="time" id="Maghrib">--:--</div></div>
+<div class="prayer"><div class="icon">🌙</div><div class="name"><div class="name-ar arabic">العشاء</div><div class="name-en">ISHA</div></div><div class="time" id="Isha">--:--</div></div>
+<div class="status" id="status">Waiting for location permission...</div>
+<button class="refresh" onclick="getLocation()">📍 Update Location & Times</button>
+</div></div>
+<script>
+const METHOD=1,SCHOOL=1;
+function convertTime(time){
+ if(!time)return"--:--"; time=time.split(" ")[0]; const [h,m]=time.split(":"); let hour=parseInt(h),period=hour>=12?"PM":"AM"; hour=hour%12||12; return `${hour}:${m} ${period}`;
+}
+function showDate(){document.getElementById("date").textContent="📅 "+new Date().toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"});}
+function getLocation(){
+ const status=document.getElementById("status"),loc=document.getElementById("location");
+ if(!navigator.geolocation){status.textContent="❌ Your browser does not support location.";return}
+ status.textContent="📡 Getting your current location...";
+ navigator.geolocation.getCurrentPosition(p=>{
+  const lat=p.coords.latitude,lon=p.coords.longitude;
+  loc.textContent=`📍 Current location • ${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+  loadPrayerTimes(lat,lon);
+ },()=>{status.textContent="❌ Location permission denied. Please enable location permission.";loc.textContent="📍 Location unavailable";},
+ {enableHighAccuracy:true,timeout:15000,maximumAge:300000});
+}
+async function loadPrayerTimes(lat,lon){
+ const status=document.getElementById("status"); status.textContent="🕌 Loading today's prayer timings...";
+ try{
+  const url=`https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=${METHOD}&school=${SCHOOL}`;
+  const response=await fetch(url); if(!response.ok)throw new Error("API request failed");
+  const result=await response.json(),t=result.data.timings;
+  ["Fajr","Dhuhr","Asr","Maghrib","Isha"].forEach(x=>document.getElementById(x).textContent=convertTime(t[x]));
+  const d=result.data.date,h=d.hijri,g=d.gregorian;
+  document.getElementById("date").innerHTML=`📅 ${g.weekday.en}, ${g.day} ${g.month.en} ${g.year}<br>☪️ ${h.day} ${h.month.en} ${h.year} AH`;
+  status.innerHTML="✅ Prayer timings updated automatically<br>Karachi calculation • Hanafi Asr";
+ }catch(e){console.error(e);status.textContent="⚠️ Unable to load prayer timings. Check your internet connection."}
+}
+let currentDay=new Date().getDate();
+setInterval(()=>{const n=new Date();if(n.getDate()!==currentDay){currentDay=n.getDate();getLocation()}},60000);
+showDate();getLocation();
+</script>
+</body>
+</html>
